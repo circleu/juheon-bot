@@ -1,18 +1,41 @@
 import discord
 import random
-import time
+import asyncio
 import JuheonBotKeywords
 from discord.ext import commands
 from JuheonBotFunctions import *
 
 
-discordBotToken = "TokenHere"
+discordBotToken = "tokenhere"
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="/", intents=intents)
+botChannel = None
 
 specialCommandsData = getSpecialCommandsJson()
 commandsData = getCommandsJson()
+
+
+async def timer(msg, time):
+	alertTime = time / 8
+
+	await msg.author.send(f"ㅇㅋ {msg.author.mention}")
+	await asyncio.sleep(time - alertTime)
+
+	if alertTime > 60:
+		await msg.author.send(f"{alertTime / 60}분 남았다")
+	else:
+		await msg.author.send(f"{alertTime}초 남았다")
+
+	await asyncio.sleep(alertTime)
+
+	for i in range(10):
+		botMsg = await msg.author.send(f"{msg.author.mention}")
+		await asyncio.sleep(0.25)
+		await botMsg.delete()
+	
+	return
+
 
 
 @bot.event
@@ -23,8 +46,24 @@ async def on_ready():
 
 
 @bot.event
+async def on_voice_state_update(member, before, after):
+	global botChannel
+
+	channel = after.channel
+	vc = 0
+
+	await asyncio.sleep(1)
+
+	if channel:
+		botChannel.play(discord.FFmpegPCMAudio("hello.ogg"), after=lambda e: print("done", e))
+		return
+	else:
+		return
+
+
+@bot.event
 async def on_message(message):
-	if message.author == bot.user:
+	if message.author.bot:
 		return
 
 	parsedMessage = message.content.split(" ")
@@ -65,8 +104,7 @@ async def on_message(message):
 @bot.listen()
 async def on_message(message):
 	preferencesData = getPreferencesJson()
-
-	if message.author == bot.user:
+	if message.author.bot:
 		return
 	if preferencesData["awake"] == 0:
 		return
@@ -102,7 +140,7 @@ async def on_message(message):
 					addValue = ""
 
 					for i in range(index+2, parsedMessageLen):
-						if matchWords(parsedMessage[i][-1], ["임", "야", "이야"]) == 0:
+						if matchWords(parsedMessage[i][-1], ["임", "야"]) == 0:
 							addValue += parsedMessage[i][:-1]
 							addValue = [addValue, message.author.id]
 
@@ -157,25 +195,53 @@ async def on_message(message):
 					continue
 				elif specialCommandsData[value] == "_07":
 					continue
+				elif specialCommandsData[value] == "_08":
+					if matchWords(parsedMessage[index+1][-1], ["초", "분"]) == 0:
+						time = float(parsedMessage[index+1][:-1])
+						
+						if parsedMessage[index+1][-1] == "분":
+							time *= 60
+						
+						if time > 0:
+							await timer(message, time)
+							return
 			except:
 				if matchWords(value, list(commandsData.keys())) == 0:
 					await message.reply(random.choice(commandsData[value]))
 					return
 				elif matchWords(value, list(userCommandsData.keys())) == 0:
-					await message.reply(random.choice(userCommandsData[value])[0])
-					return
+					try:
+						if matchWords(parsedMessage[index+1], ["목록"]) == 0:
+							commandList = []
 
+							for i in userCommandsData[value]:
+								commandList.append(i[0])
+							
+							await message.reply(", ".join(commandList))
+							return
+						elif matchWords(parsedMessage[index+2], ["지워"]) == 0:
+							answer = parsedMessage[index+1]
+
+							for i, j in enumerate(userCommandsData[value]):
+								if answer == j[0]:
+									del userCommandsData[value][i]
+									putUserCommandsJson(userCommandsData)
+									await message.reply("ㅇㅇ")
+									
+									return
+					except:
+						await message.reply(random.choice(userCommandsData[value])[0])
+						return
 			await message.reply("뭐라는거야 병신아")
 			return
 	else:
 		return
-
+	
 
 @bot.listen()
 async def on_message(message):
 	preferencesData = getPreferencesJson()
-
-	if message.author == bot.user:
+	if message.author.bot:
 		return
 	if preferencesData["awake"] == 0:
 		return
@@ -184,37 +250,48 @@ async def on_message(message):
 	wait = 0
 
 	if wait == 0:
-		if chance >= 95:
+		if chance >= 97:
 			print("Sending miku gif...")
 			wait = 1
-			time.sleep(2.5)
+			await asyncio.sleep(2.5)
 			wait = 0
 			await message.reply(random.choice(JuheonBotKeywords.miku), mention_author=False)
 
 	return
 
 
-@bot.command(name="통화방들어와")
+@bot.command(aliases=["들어와"])
 async def _join(ctx):
+	preferencesData = getPreferencesJson()
+	if preferencesData["awake"] == 0:
+		return
+
+	global botChannel
+
 	try:
 		channel = ctx.author.voice.channel
 		print(channel)
-		await channel.connect()
+		vc = await channel.connect()
+		botChannel = vc
+		vc.play(discord.FFmpegPCMAudio("hello.ogg"), after=lambda e: print("done", e))
+		return
 	except:
-		await ctx.reply("니 없는데")
-
-	return
-
+		await ctx.reply("https://tenor.com/view/hatsune-miku-miku-angry-gif-22557182")
+		return
+	
 
 @bot.command(aliases=["꺼져", "나가"])
 async def _leave(ctx):
+	preferencesData = getPreferencesJson()
+	if preferencesData["awake"] == 0:
+		return
+	
 	try:
 		await ctx.voice_client.disconnect()
-		await ctx.reply("ㅅㅂ")
+		return
 	except:
 		await ctx.reply("느금")
-
-	return
+		return
 
 
 bot.run(discordBotToken)
