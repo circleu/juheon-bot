@@ -1,4 +1,4 @@
 {
-	"awake": 1,
-	"censoring": 0
+	"awake": true,
+	"censoring": false
 }

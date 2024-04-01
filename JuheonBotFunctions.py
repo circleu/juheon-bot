@@ -45,9 +45,9 @@ def matchWords(words1, words2):
 	for word1 in words1:
 		for word2 in words2:
 			if word1 == word2:
-				return 0
+				return True
 
-	return 1
+	return False
 
 def findWords(words1, words2):
 	if not isinstance(words1, list):
@@ -58,6 +58,6 @@ def findWords(words1, words2):
 	for word1 in words1:
 		for word2 in words2:
 			if word1 in word2:
-				return 0
+				return True
 
-	return 1
+	return False
